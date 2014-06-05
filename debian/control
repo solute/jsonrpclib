@@ -1,0 +1,33 @@
+Source: jsonrpclib-pelix
+Maintainer: Thomas Calmant <thomas.calmant+github@gmail.com>
+Section: python
+Priority: optional
+Build-Depends: python-setuptools (>= 0.6b3), debhelper (>= 7), python-support (>= 0.8.4)
+Standards-Version: 3.8.4
+
+Package: python-jsonrpclib-pelix
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}
+XB-Python-Version: ${python:Versions}
+Provides: ${python:Provides}
+Description: This project is an implementation of the JSON-RPC v2.0 speci
+ JSONRPClib (patched for Pelix)
+ ##############################
+ .
+ .. image:: https://pypip.in/license/jsonrpclib-pelix/badge.svg
+     :target: https://pypi.python.org/pypi/jsonrpclib-pelix/
+ .
+ .. image:: https://travis-ci.org/tcalmant/jsonrpclib.svg?branch=master
+     :target: https://travis-ci.org/tcalmant/jsonrpclib
+ .
+ .
+ .. image:: https://coveralls.io/repos/tcalmant/jsonrpclib/badge.png?branch=master
+     :target: https://coveralls.io/r/tcalmant/jsonrpclib?branch=master
+ .
+ .
+ This library is an implementation of the JSON-RPC specification.
+ It supports both the original 1.0 specification, as well as the
+ new (proposed) 2.0 specification, which includes batch submission, keyword
+ arguments, etc.
+ .
+ It is licensed under the Apache License, Version 2.0
