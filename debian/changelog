@@ -1,5 +1,6 @@
-jsonrpclib-pelix (0.1.7-1) unstable; urgency=low
+jsonrpclib-pelix (0.1.7-1) squeeze; urgency=low
 
-  * source package automatically created by stdeb 0.6.0
+  [ Michael van Bracht ]
+  * Add initial build config
 
- -- Thomas Calmant <thomas.calmant+github@gmail.com>  Thu, 05 Jun 2014 08:40:04 +0200
+ -- Michael van Bracht <mvb@solute.de>  Thu, 05 Jun 2014 06:40:28 -0000
