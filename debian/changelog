@@ -1,3 +1,10 @@
+jsonrpclib-pelix (0.1.7.1) squeeze; urgency=low
+
+  [ Michael van Bracht ]
+  * Make additional_headers an instance attribute
+
+ -- Michael van Bracht <mvb@solute.de>  Thu, 10 Jul 2014 13:50:54 -0000
+
 jsonrpclib-pelix (0.1.7-1) squeeze; urgency=low
 
   [ Michael van Bracht ]
