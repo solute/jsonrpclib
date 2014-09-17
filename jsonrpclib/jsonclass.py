@@ -55,7 +55,7 @@ class TranslationError(Exception):
 
 # ------------------------------------------------------------------------------
 
-def dump(obj, serialize_method=None, ignore_attribute=None, ignore=None,
+def dump(obj, serialize_method=None, ignore_attribute=None, ignore=None, # pylint: disable=too-many-locals,too-many-branches
          config=jsonrpclib.config.DEFAULT):
     """
     Transforms the given object into a JSON-RPC compliant form.
@@ -107,7 +107,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=None,
     json_class = obj.__class__.__name__
 
     if module_name not in ('', '__main__'):
-        json_class = '{0}.{1}'.format(module_name, json_class)
+        json_class = '%s.%s' % (module_name, json_class)
 
     # Keep the class name in the returned object
     return_obj = {"__jsonclass__": [json_class]}
@@ -165,7 +165,7 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=None,
         return return_obj
 
 
-def load(obj, classes=None):
+def load(obj, classes=None): # pylint: disable=too-many-branches
     """
     If 'obj' is a dictionary containing a __jsonclass__ entry, converts the
     dictionary item into a bean of this class.
@@ -197,8 +197,7 @@ def load(obj, classes=None):
 
     json_module_clean = re.sub(invalid_module_chars, '', orig_module_name)
     if json_module_clean != orig_module_name:
-        raise TranslationError('Module name {0} has invalid characters.' \
-                               .format(orig_module_name))
+        raise TranslationError('Module name %r has invalid characters.' % (orig_module_name,))
 
     # Load the class
     json_module_parts = json_module_clean.split('.')
@@ -208,8 +207,7 @@ def load(obj, classes=None):
         try:
             json_class = classes[json_module_parts[0]]
         except KeyError:
-            raise TranslationError('Unknown class or module {0}.' \
-                                   .format(json_module_parts[0]))
+            raise TranslationError('Unknown class or module %r.' % (json_module_parts[0],))
 
     else:
         # Module + class
@@ -220,15 +218,13 @@ def load(obj, classes=None):
             temp_module = __import__(json_module_tree,
                                      fromlist=[json_class_name])
         except ImportError:
-            raise TranslationError('Could not import {0} from module {1}.' \
-                                   .format(json_class_name, json_module_tree))
+            raise TranslationError('Could not import %r from module %r.' % (json_class_name, json_module_tree))
 
         try:
             json_class = getattr(temp_module, json_class_name)
 
         except AttributeError:
-            raise TranslationError("Unknown class {0}.{1}." \
-                                   .format(json_module_tree, json_class_name))
+            raise TranslationError("Unknown class %s.%s." % (json_module_tree, json_class_name))
 
     # Create the object
     new_obj = None
@@ -236,21 +232,18 @@ def load(obj, classes=None):
         try:
             new_obj = json_class(*params)
 
-        except TypeError as ex:
-            raise TranslationError("Error instantiating {0}: {1}"\
-                                   .format(json_class.__name__, ex))
+        except (TypeError,), ex:
+            raise TranslationError("Error instantiating %r: %r" % (json_class.__name__, ex))
 
     elif isinstance(params, utils.DictType):
         try:
             new_obj = json_class(**params)
 
-        except TypeError as ex:
-            raise TranslationError("Error instantiating {0}: {1}"\
-                                   .format(json_class.__name__, ex))
+        except (TypeError,), ex:
+            raise TranslationError("Error instantiating %r: %r" % (json_class.__name__, ex))
 
     else:
-        raise TranslationError("Constructor args must be a dict or a list, "
-                               "not {0}".format(type(params).__name__))
+        raise TranslationError("Constructor args must be a dict or a list, not %r" % (type(params).__name__,))
 
     # Remove the class information, as it must be ignored during the
     # reconstruction of the object

@@ -70,6 +70,7 @@ import sys
 import uuid
 
 try:
+    # pylint: disable=no-name-in-module
     # Python 3
     from urllib.parse import splittype
     from urllib.parse import splithost
