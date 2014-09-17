@@ -1,3 +1,11 @@
+jsonrpclib-pelix (0.1.7.1-solute1) squeeze; urgency=low
+
+  [ Michael van Bracht ]
+  * Lint and python2.5 compatibility
+  * server: Add data attribute to error response
+
+ -- Michael van Bracht <mvb@solute.de>  Wed, 17 Sep 2014 11:52:11 -0000
+
 jsonrpclib-pelix (0.1.7.1) squeeze; urgency=low
 
   [ Michael van Bracht ]
