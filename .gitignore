@@ -2,8 +2,9 @@
 *.pyc
 __pycache__
 
-# Eclipse settings
+# Eclipse / PyCharm
 .settings
+.idea
 
 # Tox
 .tox/

@@ -48,11 +48,11 @@ appropriately.
 See https://github.com/tcalmant/jsonrpclib for more info.
 
 :license: Apache License 2.0
-:version: 0.1.7
+:version: 0.1.9
 """
 
 # Module version
-__version_info__ = (0, 1, 7)
+__version_info__ = (0, 2, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -72,6 +72,7 @@ import uuid
 try:
     # pylint: disable=no-name-in-module
     # Python 3
+    # pylint: disable=F0401,E0611
     from urllib.parse import splittype
     from urllib.parse import splithost
     from xmlrpc.client import Transport as XMLTransport
@@ -81,6 +82,7 @@ try:
 
 except ImportError:
     # Python 2
+    # pylint: disable=F0401,E0611
     from urllib import splittype
     from urllib import splithost
     from xmlrpclib import Transport as XMLTransport
@@ -95,6 +97,7 @@ except ImportError:
 from jsonrpclib import jsonclass
 
 try:
+    # pylint: disable=F0401,E0611
     # Using cjson
     import cjson
 
@@ -106,6 +109,7 @@ try:
         return cjson.decode(json_string)
 
 except ImportError:
+    # pylint: disable=F0401,E0611
     # Use json or simplejson
     try:
         import json
@@ -113,7 +117,7 @@ except ImportError:
         try:
             import simplejson as json
         except ImportError:
-            raise ImportError('You must have the cjson, json, or simplejson ' \
+            raise ImportError('You must have the cjson, json, or simplejson '
                               'module(s) available.')
 
     # Declare json methods
@@ -134,6 +138,7 @@ except ImportError:
 # ------------------------------------------------------------------------------
 # XMLRPClib re-implementations
 
+
 class ProtocolError(Exception):
     """
     JSON-RPC error
@@ -143,6 +148,7 @@ class ProtocolError(Exception):
     * a (code, message) tuple
     """
     pass
+
 
 class AppError(ProtocolError):
     """
@@ -247,6 +253,7 @@ class TransportMixIn(object):
         target = JSONTarget()
         return JSONParser(target), target
 
+
 class JSONParser(object):
     def __init__(self, target):
         self.target = target
@@ -256,6 +263,7 @@ class JSONParser(object):
 
     def close(self):
         pass
+
 
 class JSONTarget(object):
     def __init__(self):
@@ -280,13 +288,16 @@ class JSONTarget(object):
 
             return data
 
+
 class Transport(TransportMixIn, XMLTransport):
     pass
+
 
 class SafeTransport(TransportMixIn, XMLSafeTransport):
     pass
 
 # ------------------------------------------------------------------------------
+
 
 class ServerProxy(XMLServerProxy):
     """
@@ -431,6 +442,7 @@ class ServerProxy(XMLServerProxy):
 
 # ------------------------------------------------------------------------------
 
+
 class _Method(XML_Method):
 
     def __call__(self, *args, **kwargs):
@@ -446,11 +458,12 @@ class _Method(XML_Method):
         if name == "__name__":
             return self.__name
 
-        self.__name = '%s.%s' % (self.__name, name)
+        self.__name = "{0}.{1}".format(self.__name, name)
         return self
         # The old method returned a new instance, but this seemed wasteful.
         # The only thing that changes is the name.
-        # return _Method(self.__send, "%s.%s" % (self.__name, name))
+        # return _Method(self.__send, "{0}.{1}".format(self.__name, name))
+
 
 class _Notify(object):
     def __init__(self, request):
@@ -461,6 +474,7 @@ class _Notify(object):
 
 # ------------------------------------------------------------------------------
 # Batch implementation
+
 
 class MultiCallMethod(object):
 
@@ -485,12 +499,13 @@ class MultiCallMethod(object):
                      config=self._config)
 
     def __repr__(self):
-        return '%s' % self.request()
+        return str(self.request())
 
     def __getattr__(self, method):
-        new_method = '%s.%s' % (self.method, method)
+        new_method = "{0}.{1}".format(self.method, method)
         self.method = new_method
         return self
+
 
 class MultiCallNotify(object):
 
@@ -502,6 +517,7 @@ class MultiCallNotify(object):
         new_job = MultiCallMethod(name, notify=True, config=self._config)
         self.multicall._job_list.append(new_job)
         return new_job
+
 
 class MultiCallIterator(object):
 
@@ -520,6 +536,7 @@ class MultiCallIterator(object):
 
     def __len__(self):
         return len(self.results)
+
 
 class MultiCall(object):
 
@@ -556,6 +573,7 @@ class MultiCall(object):
 Server = ServerProxy
 
 # ------------------------------------------------------------------------------
+
 
 class Fault(object):
     """
@@ -724,6 +742,7 @@ class Payload(object):
 
 # ------------------------------------------------------------------------------
 
+
 def dump(params=None, methodname=None, rpcid=None, version=None,
          is_response=None, is_notify=None, config=jsonrpclib.config.DEFAULT):
     """
@@ -742,13 +761,16 @@ def dump(params=None, methodname=None, rpcid=None, version=None,
     if not version:
         version = config.version
 
-    if params is None:
+    if not is_response and params is None:
         params = []
 
     # Validate method name and parameters
-    valid_params = (utils.TupleType, utils.ListType, utils.DictType, Fault)
+    valid_params = [utils.TupleType, utils.ListType, utils.DictType, Fault]
+    if is_response:
+        valid_params.append(type(None))
+
     if methodname in utils.StringTypes and \
-    not isinstance(params, valid_params):
+            not isinstance(params, valid_params):
         """
         If a method, and params are not in a listish or a Fault,
         error out.
@@ -761,16 +783,17 @@ def dump(params=None, methodname=None, rpcid=None, version=None,
 
     if isinstance(params, Fault):
         # Prepare an error dictionary
+        # pylint: disable=E1103
         return payload.error(params.faultCode, params.faultString, params.data)
 
     if type(methodname) not in utils.StringTypes and not is_response:
         # Neither a request nor a response
-        raise ValueError('Method name must be a string, or is_response ' \
+        raise ValueError('Method name must be a string, or is_response '
                          'must be set to True.')
 
     if config.use_jsonclass:
         # Use jsonclass to convert the parameters
-        params = jsonclass.dump(params)
+        params = jsonclass.dump(params, config=config)
 
     if is_response:
         # Prepare a response dictionary
@@ -858,6 +881,7 @@ def loads(data, config=jsonrpclib.config.DEFAULT):
 
 # ------------------------------------------------------------------------------
 
+
 def check_for_errors(result):
     """
     Checks if a result dictionary signals an error
@@ -873,7 +897,7 @@ def check_for_errors(result):
         # Notification
         return result
 
-    if type(result) is not utils.DictType:
+    if not isinstance(result, utils.DictType):
         # Invalid argument
         raise TypeError('Response is not a dict.')
 
@@ -923,13 +947,13 @@ def check_for_errors(result):
 
 
 def isbatch(result):
-    if type(result) not in (utils.ListType, utils.TupleType):
+    if not isinstance(result, (utils.ListType, utils.TupleType)):
         return False
-    if len(result) < 1:
+    elif len(result) < 1:
         return False
-    if type(result[0]) is not utils.DictType:
+    elif not isinstance(result[0], utils.DictType):
         return False
-    if 'jsonrpc' not in result[0].keys():
+    elif 'jsonrpc' not in result[0].keys():
         return False
     try:
         version = float(result[0]['jsonrpc'])

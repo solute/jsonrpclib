@@ -16,11 +16,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 :license: Apache License 2.0
-:version: 0.1.7
+:version: 0.2.1
 """
 
 # Module version
-__version_info__ = (0, 1, 7)
+__version_info__ = (0, 2, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -39,13 +39,14 @@ import re
 # ------------------------------------------------------------------------------
 
 # Supported transmitted code
-supported_types = (utils.DictType,) + utils.iterable_types \
-                  + utils.primitive_types
+SUPPORTED_TYPES = (utils.DictType,) + utils.iterable_types \
+    + utils.primitive_types
 
 # Regex of invalid module characters
-invalid_module_chars = r'[^a-zA-Z0-9\_\.]'
+INVALID_MODULE_CHARS = r'[^a-zA-Z0-9\_\.]'
 
 # ------------------------------------------------------------------------------
+
 
 class TranslationError(Exception):
     """
@@ -53,7 +54,45 @@ class TranslationError(Exception):
     """
     pass
 
-# ------------------------------------------------------------------------------
+
+def _slots_finder(clazz, fields_set):
+    """
+    Recursively visits the class hierarchy to find all slots
+
+    :param clazz: Class to analyze
+    :param fields_set: Set where to store __slots___ content
+    """
+    # ... class level
+    try:
+        fields_set.update(clazz.__slots__)
+    except AttributeError:
+        pass
+
+    # ... parent classes level
+    for base_class in clazz.__bases__:
+        _slots_finder(base_class, fields_set)
+
+
+def _find_fields(obj):
+    """
+    Returns the names of the fields of the given object
+
+    :param obj: An object to analyze
+    :return: A set of field names
+    """
+    # Find fields...
+    fields = set()
+
+    # ... using __dict__
+    try:
+        fields.update(obj.__dict__)
+    except AttributeError:
+        pass
+
+    # ... using __slots__
+    _slots_finder(obj.__class__, fields)
+    return fields
+
 
 def dump(obj, serialize_method=None, ignore_attribute=None, ignore=None, # pylint: disable=too-many-locals,too-many-branches
          config=jsonrpclib.config.DEFAULT):
@@ -70,21 +109,18 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=None, # pylin
     :param config: A JSONRPClib Config instance
     :return: A JSON-RPC compliant object
     """
-    if not serialize_method:
-        serialize_method = config.serialize_method
-
-    if not ignore_attribute:
-        ignore_attribute = config.ignore_attribute
-
-    if not ignore:
-        ignore = []
+    # Normalize arguments
+    serialize_method = serialize_method or config.serialize_method
+    ignore_attribute = ignore_attribute or config.ignore_attribute
+    ignore = ignore or []
 
     # Parse / return default "types"...
     # Apply additional types, override built-in types
     # (reminder: config.serialize_handlers is a dict)
     if isinstance(obj, tuple(config.serialize_handlers)):
         return config.serialize_handlers[type(obj)](obj, serialize_method,
-                                                    ignore_attribute, ignore)
+                                                    ignore_attribute, ignore,
+                                                    config)
 
     # Primitive
     elif isinstance(obj, utils.primitive_types):
@@ -93,13 +129,13 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=None, # pylin
     # Iterative
     elif isinstance(obj, utils.iterable_types):
         # List, set or tuple
-        return [dump(item, serialize_method, ignore_attribute, ignore)
+        return [dump(item, serialize_method, ignore_attribute, ignore, config)
                 for item in obj]
 
     elif isinstance(obj, utils.DictType):
         # Dictionary
         return dict((key, dump(value, serialize_method,
-                               ignore_attribute, ignore))
+                               ignore_attribute, ignore, config))
                     for key, value in obj.items())
 
     # It's not a standard type, so it needs __jsonclass__
@@ -129,28 +165,11 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=None, # pylin
         return_obj['__jsonclass__'].append([])
 
         # Prepare filtering lists
-        known_types = supported_types + tuple(config.serialize_handlers)
+        known_types = SUPPORTED_TYPES + tuple(config.serialize_handlers)
         ignore_list = getattr(obj, ignore_attribute, []) + ignore
 
-        # Find fields...
-        fields = set()
-
-        # ... class-level
-        for storage in ('__dict__', '__slots__'):
-            try:
-                fields.update(getattr(obj, storage))
-            except AttributeError:
-                pass
-
-        # ... parent classes level
-        for base_class in obj.__class__.__bases__:
-            try:
-                fields.update(base_class.__slots__)
-            except AttributeError:
-                # No slots
-                pass
-
-        # ... filter fields by name
+        # Find fields and filter them by name
+        fields = _find_fields(obj)
         fields.difference_update(ignore_list)
 
         # Dump field values
@@ -160,9 +179,11 @@ def dump(obj, serialize_method=None, ignore_attribute=None, ignore=None, # pylin
             if isinstance(attr_value, known_types) and \
                     attr_value not in ignore_list:
                 attrs[attr_name] = dump(attr_value, serialize_method,
-                                        ignore_attribute, ignore)
+                                        ignore_attribute, ignore, config)
         return_obj.update(attrs)
         return return_obj
+
+# ------------------------------------------------------------------------------
 
 
 def load(obj, classes=None): # pylint: disable=too-many-branches
@@ -184,7 +205,7 @@ def load(obj, classes=None): # pylint: disable=too-many-branches
         return [load(entry) for entry in obj]
 
     # Otherwise, it's a dict type
-    elif '__jsonclass__' not in obj.keys():
+    elif '__jsonclass__' not in obj:
         return dict((key, load(value)) for key, value in obj.items())
 
     # It's a dictionary, and it has a __jsonclass__
@@ -195,7 +216,7 @@ def load(obj, classes=None): # pylint: disable=too-many-branches
     if not orig_module_name:
         raise TranslationError('Module name empty.')
 
-    json_module_clean = re.sub(invalid_module_chars, '', orig_module_name)
+    json_module_clean = re.sub(INVALID_MODULE_CHARS, '', orig_module_name)
     if json_module_clean != orig_module_name:
         raise TranslationError('Module name %r has invalid characters.' % (orig_module_name,))
 
@@ -222,7 +243,6 @@ def load(obj, classes=None): # pylint: disable=too-many-branches
 
         try:
             json_class = getattr(temp_module, json_class_name)
-
         except AttributeError:
             raise TranslationError("Unknown class %s.%s." % (json_module_tree, json_class_name))
 
@@ -231,14 +251,12 @@ def load(obj, classes=None): # pylint: disable=too-many-branches
     if isinstance(params, utils.ListType):
         try:
             new_obj = json_class(*params)
-
         except (TypeError,), ex:
             raise TranslationError("Error instantiating %r: %r" % (json_class.__name__, ex))
 
     elif isinstance(params, utils.DictType):
         try:
             new_obj = json_class(**params)
-
         except (TypeError,), ex:
             raise TranslationError("Error instantiating %r: %r" % (json_class.__name__, ex))
 
@@ -247,10 +265,13 @@ def load(obj, classes=None): # pylint: disable=too-many-branches
 
     # Remove the class information, as it must be ignored during the
     # reconstruction of the object
-    del obj['__jsonclass__']
+    raw_jsonclass = obj.pop('__jsonclass__')
 
     for key, value in obj.items():
         # Recursive loading
         setattr(new_obj, key, load(value, classes))
+
+    # Restore the class information for further usage
+    obj['__jsonclass__'] = raw_jsonclass
 
     return new_obj

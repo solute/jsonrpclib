@@ -10,8 +10,10 @@ TODO: test custom serialization
 
 # JSON-RPC library
 from jsonrpclib.jsonclass import dump, load
+import jsonrpclib.config
 
 # Standard library
+import datetime
 import sys
 try:
     import unittest2 as unittest
@@ -107,6 +109,29 @@ class InheritanceSlotBean(SlotBean):
             and self.first == other.first \
             and self._second == other._second
 
+
+class SecondInheritanceSlotBean(InheritanceSlotBean):
+    """
+    Grand-child bean using slots
+    """
+    __slots__ = ('third', '_fourth')
+
+    def __init__(self):
+        """
+        Sets up members
+        """
+        InheritanceSlotBean.__init__(self)
+        self.third = False
+        self._fourth = [4, 5, 6]
+
+    def __eq__(self, other):
+        """
+        Checks equality
+        """
+        return InheritanceSlotBean.__eq__(self, other) \
+            and self.third == other.third \
+            and self._fourth == other._fourth
+
 # ------------------------------------------------------------------------------
 
 class SerializationTests(unittest.TestCase):
@@ -115,7 +140,7 @@ class SerializationTests(unittest.TestCase):
     """
     def setUp(self):
         """
-        Tests initalization
+        Tests initialization
         """
         # Compatibility issue between Python 2 & 3
         if sys.version_info[0] < 3:
@@ -192,7 +217,10 @@ class SerializationTests(unittest.TestCase):
                  InheritanceBean: ('public', '_protected', 'first', '_second'),
                  SlotBean: ('public', '_protected'),
                  InheritanceSlotBean: ('public', '_protected',
-                                       'first', '_second'), }
+                                       'first', '_second'),
+                 SecondInheritanceSlotBean: ('public', '_protected',
+                                             'first', '_second',
+                                             'third', '_fourth'), }
 
         for clazz, fields in types.items():
             # Prepare the bean
@@ -214,10 +242,44 @@ class SerializationTests(unittest.TestCase):
             # Reload it
             deserialized = load(serialized)
 
-            # Dictionary is modified
-            self.assertNotIn('__jsonclass__', serialized,
-                             "Serialized dictionary not cleaned up")
+            # Dictionary is left as-is
+            self.assertIn('__jsonclass__', serialized,
+                          "Serialized dictionary has been modified")
+            self.assertFalse(hasattr(deserialized, '__jsonclass__'),
+                             "The deserialized bean shouldn't have a "
+                             "__jsonclass__ attribute")
 
             # Check deserialized value
             self.assertIs(type(deserialized), type(data))
-            self.assertEqual(deserialized, data)
+            self.assertEqual(deserialized, data,
+                             "Source and deserialized bean are not equal")
+
+    def test_config_custom(self):
+        """
+        Tests configured custom serializer
+        """
+        # Get the current time object
+        now = datetime.datetime.now()
+
+        # Check if it is correctly serialized
+        std_serialized = dump(now)
+        self.assertEqual(std_serialized['__jsonclass__'][0],
+                         'datetime.datetime')
+
+        # Configure a custom serializer
+        def datetime_serializer(obj, serialize_method, ignore_attribute,
+                                ignore, config):
+            """
+            Custom datetime serializer (returns an ISO date string)
+            """
+            self.assertIs(type(obj), datetime.datetime)
+            return obj.isoformat()
+
+        handlers = {datetime.datetime: datetime_serializer}
+        config = jsonrpclib.config.Config(serialize_handlers=handlers)
+
+        # Dump with out configuration
+        custom_serialized = dump(now, config=config)
+
+        # This should be a raw string
+        self.assertEqual(custom_serialized, now.isoformat())

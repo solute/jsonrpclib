@@ -16,17 +16,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 :license: Apache License 2.0
-:version: 0.1.5
+:version: 0.2.1
 """
 
 # Module version
-__version_info__ = (0, 1, 5)
+__version_info__ = (0, 2, 1)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
+
 
 class History(object):
     """
@@ -62,8 +63,6 @@ class History(object):
     def request(self):
         """
         Returns the latest stored request or None
-
-        :return: The latest stored request
         """
         try:
             return self.requests[-1]
@@ -75,8 +74,6 @@ class History(object):
     def response(self):
         """
         Returns the latest stored response or None
-
-        :return: The latest stored response
         """
         try:
             return self.responses[-1]

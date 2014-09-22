@@ -75,12 +75,13 @@ new proposed features of 2.0, including:
 I've added a "SimpleJSONRPCServer", which is intended to emulate the
 "SimpleXMLRPCServer" from the default Python distribution.
 
+
 Requirements
 ************
 
 It supports ``cjson`` and ``simplejson``, and looks for the parsers in that
-order (searching first for ``cjson``, then for the *built-in* ``simplejson`` as
-``json`` in 2.6+, and then the ``simplejson`` external library).
+order (searching first for ``cjson``, then for the *built-in* ``json`` in 2.6+,
+and then the ``simplejson`` external library).
 One of these must be installed to use this library, although if you have a
 standard distribution of 2.6+, you should already have one.
 Keep in mind that ``cjson`` is supposed to be the quickest, I believe, so if
@@ -101,7 +102,7 @@ may be required):
    easy_install jsonrpclib-pelix
    pip install jsonrpclib-pelix
 
-Alternatively, you can download the source from the github repository
+Alternatively, you can download the source from the GitHub repository
 at http://github.com/tcalmant/jsonrpclib and manually install it
 with the following commands:
 
@@ -112,6 +113,27 @@ with the following commands:
    python setup.py install
 
 
+SimpleJSONRPCServer
+*******************
+
+This is identical in usage (or should be) to the SimpleXMLRPCServer in the
+Python standard library. Some of the differences in features are that it
+obviously supports notification, batch calls, class translation (if left on),
+etc.
+Note: The import line is slightly different from the regular SimpleXMLRPCServer,
+since the SimpleJSONRPCServer is distributed within the ``jsonrpclib`` library.
+
+.. code-block:: python
+
+   from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
+
+   server = SimpleJSONRPCServer(('localhost', 8080))
+   server.register_function(pow)
+   server.register_function(lambda x,y: x+y, 'add')
+   server.register_function(lambda x: x, 'ping')
+   server.serve_forever()
+
+
 Client Usage
 ************
 
@@ -120,13 +142,9 @@ This is (obviously) taken from a console session.
 .. code-block:: python
 
    >>> import jsonrpclib
-   >>> server = jsonrpclib.Server('http://localhost:8080')
+   >>> server = jsonrpclib.ServerProxy('http://localhost:8080')
    >>> server.add(5,6)
    11
-   >>> print jsonrpclib.history.request
-   {"jsonrpc": "2.0", "params": [5, 6], "id": "gb3c9g37", "method": "add"}
-   >>> print jsonrpclib.history.response
-   {'jsonrpc': '2.0', 'result': 11, 'id': 'gb3c9g37'}
    >>> server.add(x=5, y=10)
    15
    >>> server._notify.add(5,6)
@@ -137,37 +155,58 @@ This is (obviously) taken from a console session.
    >>> batch._notify.add(4, 30)
    >>> results = batch()
    >>> for result in results:
-   >>> ... print result
+   >>> ... print(result)
    11
    {'key': 'value'}
    # Note that there are only two responses -- this is according to spec.
+   
+   # Clean up
+   >>> server('close')()
+   
+   # Using client history
+   >>> history = jsonrpclib.history.History()
+   >>> server = jsonrpclib.ServerProxy('http://localhost:8080', history=history)
+   >>> server.add(5,6)
+   11
+   >>> print(history.request)
+   {"id": "f682b956-c8e1-4506-9db4-29fe8bc9fcaa", "jsonrpc": "2.0",
+    "method": "add", "params": [5, 6]}
+   >>> print(history.response)
+   {"id": "f682b956-c8e1-4506-9db4-29fe8bc9fcaa", "jsonrpc": "2.0",
+    "result": 11}
+   
+   # Clean up
+   >>> server('close')()
 
-If you need 1.0 functionality, there are a bunch of places you can pass that
-in, although the best is just to change the value on
-``jsonrpclib``.config.version:
+If you need 1.0 functionality, there are a bunch of places you can pass that in,
+although the best is just to give a specific configuration to
+``jsonrpclib.ServerProxy``:
 
 .. code-block:: python
 
    >>> import jsonrpclib
-   >>> jsonrpclib.config.version
+   >>> jsonrpclib.config.DEFAULT.version
    2.0
-   >>> jsonrpclib.config.version = 1.0
-   >>> server = jsonrpclib.Server('http://localhost:8080')
+   >>> config = jsonrpclib.config.Config(version=1.0)
+   >>> history = jsonrpclib.history.History()
+   >>> server = jsonrpclib.ServerProxy('http://localhost:8080', config=config,
+                                       history=history)
    >>> server.add(7, 10)
    17
-   >>> print jsonrpclib..history.request
-   {"params": [7, 10], "id": "thes7tl2", "method": "add"}
-   >>> print jsonrpclib.history.response
-   {'id': 'thes7tl2', 'result': 17, 'error': None}
-   >>>
+   >>> print(history.request)
+   {"id": "827b2923-5b37-49a5-8b36-e73920a16d32",
+    "method": "add", "params": [7, 10]}
+   >>> print(history.response)
+   {"id": "827b2923-5b37-49a5-8b36-e73920a16d32", "error": null, "result": 17}
+   >>> server('close')()
 
-The equivalent loads and dumps functions also exist, although with minor
-modifications. The dumps arguments are almost identical, but it adds three
-arguments: rpcid for the 'id' key, version to specify the JSON-RPC
-compatibility, and notify if it's a request that you want to be a
+The equivalent ``loads`` and ``dumps`` functions also exist, although with minor
+modifications. The ``dumps`` arguments are almost identical, but it adds three
+arguments: ``rpcid`` for the 'id' key, ``version`` to specify the JSON-RPC
+compatibility, and ``notify`` if it's a request that you want to be a
 notification.
 
-Additionally, the loads method does not return the params and method like
+Additionally, the ``loads`` method does not return the params and method like
 ``xmlrpclib``, but instead a.) parses for errors, raising ProtocolErrors, and
 b.) returns the entire structure of the request / response for manual parsing.
 
@@ -191,32 +230,11 @@ You can also put additional request headers only for certain method invocation:
    >>> import jsonrpclib
    >>> server = jsonrpclib.Server("http://localhost:8080")
    >>> with server._additional_headers({'X-Test' : 'Test'}) as test_server:
-   ...     test_server.ping()
+   ...     test_server.ping(42)
    ...
    >>> # X-Test header will be no longer sent in requests
 
 Of course ``_additional_headers`` contexts can be nested as well.
-
-
-SimpleJSONRPCServer
-*******************
-
-This is identical in usage (or should be) to the SimpleXMLRPCServer in the
-default Python install. Some of the differences in features are that it
-obviously supports notification, batch calls, class translation (if left on),
-etc.
-Note: The import line is slightly different from the regular SimpleXMLRPCServer,
-since the SimpleJSONRPCServer is distributed within the ``jsonrpclib`` library.
-
-.. code-block:: python
-
-   from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCServer
-
-   server = SimpleJSONRPCServer(('localhost', 8080))
-   server.register_function(pow)
-   server.register_function(lambda x,y: x+y, 'add')
-   server.register_function(lambda x: x, 'ping')
-   server.serve_forever()
 
 
 Class Translation
@@ -263,29 +281,35 @@ behavior recursively goes through attributes and lists / dicts / tuples).
 
 .. code-block:: python
 
-   import jsonrpclib
-   import test_obj
+   >>> import jsonrpclib
+   >>> import test_obj
 
-   jsonrpclib.config.use_jsonclass = True
+   # History is used only to print the serialized form of beans
+   >>> history = jsonrpclib.history.History()
+   >>> testobj1 = test_obj.TestObj()
+   >>> testobj2 = test_obj.TestSerial()
+   >>> server = jsonrpclib.Server('http://localhost:8080', history=history)
 
-   testobj1 = test_obj.TestObj()
-   testobj2 = test_obj.TestSerial()
-   server = jsonrpclib.Server('http://localhost:8080')
    # The 'ping' just returns whatever is sent
-   ping1 = server.ping(testobj1)
-   ping2 = server.ping(testobj2)
-   print jsonrpclib.history.request
-   # {"jsonrpc": "2.0", "params": [{"__jsonclass__": ["test_obj.TestSerial", ["foo"]]}], "id": "a0l976iv", "method": "ping"}
-   print jsonrpclib.history.result
-   # {'jsonrpc': '2.0', 'result': <test_obj.TestSerial object at 0x2744590>, 'id': 'a0l976iv'}
+   >>> ping1 = server.ping(testobj1)
+   >>> ping2 = server.ping(testobj2)
 
-To turn on this behaviour, just set ``jsonrpclib``.config.use_jsonclass to True.
-If you want to use a different method for serialization, just set
-``jsonrpclib``.config.serialize_method to the method name. Finally, if you are
-using classes that you have defined in the implementation (as in, not a
-separate library), you'll need to add those (on BOTH the server and the
-client) using the ``jsonrpclib``.config.classes.add() method.
-(Examples forthcoming.)
+   >>> print(history.request)
+   {"id": "7805f1f9-9abd-49c6-81dc-dbd47229fe13", "jsonrpc": "2.0",
+    "method": "ping", "params": [{"__jsonclass__":
+                                  ["test_obj.TestSerial", []], "foo": "bar"}
+                                ]}
+   >>> print(history.response)
+   {"id": "7805f1f9-9abd-49c6-81dc-dbd47229fe13", "jsonrpc": "2.0",
+    "result": {"__jsonclass__": ["test_obj.TestSerial", []], "foo": "bar"}}
+
+This behavior is turned by default. To deactivate it, just set the
+``use_jsonclass`` member of a server ``Config`` to False.
+If you want to use a per-class serialization method, set its name in the
+``serialize_method`` member of a server ``Config``.
+Finally, if you are using classes that you have defined in the implementation
+(as in, not a separate library), you'll need to add those (on BOTH the server
+and the client) using the ``config.classes.add()`` method.
 
 Feedback on this "feature" is very, VERY much appreciated.
 
