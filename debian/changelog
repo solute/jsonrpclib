@@ -1,0 +1,61 @@
+jsonrpclib-pelix (0.2.6~pre1) squeeze; urgency=low
+
+ -- Marc Schmitzer <marc@solute.de>  Thu, 09 Apr 2015 14:33:58 -0000
+
+jsonrpclib-pelix (0.2.1-solute1) squeeze; urgency=low
+
+  [ Michael van Bracht ]
+  * Merge commit '3c8cee6b72743bab9a7490c4405a2da96137c6a6' into debian
+
+  [ Thomas Calmant ]
+  * Version number updated to 0.2.1
+  * Update version number to 0.2.1
+  * jsonrpclib is now a mandatory requirement
+  * Return None when the called method returned None
+  * Replaced "type() is" by "isinstance()"
+  * Ignore .idea folder from PyCharm
+  * Updated version number to 0.2.0
+  * Code review with pep8 and pylint
+  * Added PyLint configuration from the iPOPO project
+  * Merge branch 'dawryn-master'
+  * Added missing parameter to the serializer test method
+  * Replaced old format syntax by str.format()
+  * Version update (for next release)
+  * Correction of the README file to match current API
+  * Corrected compatibility with JSON-RPC 1.0
+  * jsonclass: Code format & version update
+  * Merge pull request #8 from dawryn/master
+  * Version update: 0.1.8
+  * Correction of docstrings
+  * The dictionary given to load() keeps its __jsonclass__ attribute
+  * Added tests for a two-levels inheritance
+  * Recursive search for __slots__: bean inheritance is fully handled now
+  * Added a test for custom type-based serializers
+
+  [ dawryn ]
+  * Propagate config through jsonclass
+  * Propagate config through jsonclass
+
+ -- Michael van Bracht <mvb@solute.de>  Mon, 22 Sep 2014 14:46:51 -0000
+
+jsonrpclib-pelix (0.1.7.1-solute1) squeeze; urgency=low
+
+  [ Michael van Bracht ]
+  * Lint and python2.5 compatibility
+  * server: Add data attribute to error response
+
+ -- Michael van Bracht <mvb@solute.de>  Wed, 17 Sep 2014 11:52:11 -0000
+
+jsonrpclib-pelix (0.1.7.1) squeeze; urgency=low
+
+  [ Michael van Bracht ]
+  * Make additional_headers an instance attribute
+
+ -- Michael van Bracht <mvb@solute.de>  Thu, 10 Jul 2014 13:50:54 -0000
+
+jsonrpclib-pelix (0.1.7-1) squeeze; urgency=low
+
+  [ Michael van Bracht ]
+  * Add initial build config
+
+ -- Michael van Bracht <mvb@solute.de>  Thu, 05 Jun 2014 06:40:28 -0000
